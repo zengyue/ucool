@@ -3,55 +3,29 @@
 var url = require('url'),
   less = require('less'),
   fs = require('fs'),
-  Promise = require('promise');
+  http = require('http'),
+  Q = require('q');
 
 module.exports = function (app) {
   var remoteUrl = 'http://g.tbcdn.cn',
-    baseDir = '/Users/zengyue.yezy/Sites/gitlab';
+    //baseDir = '/Users/zengyue.yezy/Sites/gitlab';
+    baseDir = 'D:\\works\\htdocs\\git\\gitlab';
 
-  //获取本地文件
-  function readFileData(path){
-    var promise = new Promise(function (resolve, reject) {
-      fs.readFile(path, function (err, data) {
-        console.log(data);
-        if (err){
-          reject(err);
-        }
-        else{
-          resolve(data);
-        }
-      });
-      return promise;
-    });
-  }
-
-  //获取远程文件
-  function fetchFileData(path){
-    var promise = new Promise(function (resolve, reject) {
-      fs.readFile(path, function (err, data) {
-        if (err){
-          reject(err);
-        }
-        else{
-          resolve(res);
-        }
-      });
-      return promise;
-    });
-  }
 
   function getFileData(path, index, result){
     var localPath = baseDir + path,
-      remotePath = remoteUrl + path;
+      remotePath = remoteUrl + path,
+      deferred = Q.defer();
     fs.exists(localPath, function(exists){
+      //获取本地文件
       if(exists){
-        readFileData(localPath).done(function(){
-        });
+        fs.readFile(localPath, 'utf-8', deferred.makeNodeResolver());
       }
       else{
-        fetchFileData(remotePath);
+        http.get(remotePath, deferred.makeNodeResolver());
       }
     })
+    return deferred.promise;
   }
 
   app.get('*', function (req, res) {
@@ -62,12 +36,13 @@ module.exports = function (app) {
       fetchList = [];
     if(path){
       path = path.split(',');
-      // path.forEach(function(item){
-      //   fetchList.push(getFileData(pathname + item));
-      // })
-      fetchList.push(readFileData('/Users/zengyue.yezy/Sites/gitlab/fi/insure/seller/protect/js/item.js'))
-      Promise.all(fetchList).done(function(){
-        console.log(arguments);
+      path.forEach(function(item){
+        fetchList.push(getFileData(pathname + item));
+      })
+      // fetchList.push(readFileData('/Users/zengyue.yezy/Sites/gitlab/fi/insure/seller/protect/js/item.js'))
+      Q.all(fetchList).done(function(data){
+        // console.log(data);
+        res.write(data[0]);
         res.end();
       })
     }
