@@ -9,8 +9,8 @@ var url = require('url'),
 module.exports = function (app) {
   //因为g.tbcdn.cn本来就要映射到本地，所以要通过a.tbcdn.cn获取
   var remoteHostname = 'a.tbcdn.cn',
-    baseDir = '/Users/zengyue.yezy/Sites/gitlab';
-    // baseDir = 'D:\\works\\htdocs\\git\\gitlab';
+    // baseDir = '/Users/zengyue.yezy/Sites/gitlab';
+    baseDir = 'D:\\works\\htdocs\\git\\gitlab';
     // 
     // 
   
@@ -25,7 +25,8 @@ module.exports = function (app) {
         var prepend = new Buffer('/**' + path + '**/\n'),
           //在文件尾添加一个换行
           append = new Buffer('\n');
-        deferred.resolve(Buffer.concat([prepend, data, append]));
+        // deferred.resolve(Buffer.concat([prepend, data, append]));
+        deferred.resolve(data);
       }
     });
   }
@@ -43,12 +44,12 @@ module.exports = function (app) {
 
     var req = http.request(options, function(res) {
       var chunks = [];
-      chunks.push(new Buffer('/**' + url.format(options) + '**/\n'));
+      // chunks.push(new Buffer('/**' + url.format(options) + '**/\n'));
       res.on('data', function (chunk) {
         chunks.push(chunk);
       });
       res.on('end', function(){
-        chunks.push(new Buffer('\n'));
+        // chunks.push(new Buffer('\n'));
         var data = Buffer.concat(chunks);
         deferred.resolve(data);
       })
@@ -109,9 +110,33 @@ module.exports = function (app) {
     return paths;
   }
 
+  function getExtName(url){
+    var result = /\.[^\.]+$/.exec(url) || [],
+      ext = result[0] || '';
+    //ext => ['.css?t=123']
+    //url有可能带有参数.css?t=123,所要去掉后面的这些
+    return ext.replace(/\?\S*$/, '').toLowerCase();
+  }
+
+  var typeMap = {
+    '.css': 'text/css',
+    '.js': 'application/x-javascript',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.gif': 'image/gif'
+  }
+
+  //设置conentType
+  function setContentType (res, url) {
+    var contentType = typeMap[getExtName(url)];
+    res.setHeader("Content-Type", contentType);
+  }
+
   app.get('*', function (req, res) {
     var paths = getFilesPath(req.url.replace(/-min./g, '.')), //去掉-min, 使用源文件
       fetchList = [];
+
+    setContentType(res, req.url);
 
     //循环获取每个文件的内容
     paths.forEach(function(path){
